@@ -1,0 +1,80 @@
+<html>
+  <head>
+    <title>Licode Basic Example</title>
+    <script type="text/javascript" src="erizo.js"></script>
+    <script type="text/javascript">
+ 
+      window.onload = function () {
+          var token, localStream, room;
+          var serverUrl = "http://localhost:9000/";
+          var req = new XMLHttpRequest();
+          var url = serverUrl + 'token';
+          var body = {roomId: '56a124ccd402ab003a47bf5e', username: 'userName', role: 'presenter'};
+
+          req.onreadystatechange = function () {
+              if (req.readyState === 4) {
+                  console.log(req.responseText);
+                  token = req.responseText;
+                  localStream = Erizo.Stream({audio: true, video: true, data: true});
+                  room = Erizo.Room({token: token});
+                  localStream.addEventListener("access-accepted", function () {
+ 
+                  var subscribeToStreams = function (streams) {
+                      for (var index in streams) {
+                        var stream = streams[index];
+                        if (localStream.getID() !== stream.getID()) {
+                            room.subscribe(stream);
+                        }
+                      }
+                  };
+     
+                  room.addEventListener("room-connected", function (roomEvent) {
+     
+                      room.publish(localStream);
+                      subscribeToStreams(roomEvent.streams);
+                  });
+     
+                  room.addEventListener("stream-subscribed", function(streamEvent) {
+                      var stream = streamEvent.stream;
+                      var div = document.createElement('div');
+                      div.setAttribute("style", "width: 320px; height: 240px;");
+                      div.setAttribute("id", "test" + stream.getID());
+     
+                      document.body.appendChild(div);
+                      stream.play("test" + stream.getID());
+                  });
+     
+                  room.addEventListener("stream-added", function (streamEvent) {
+                      var streams = [];
+                      streams.push(streamEvent.stream);
+                      subscribeToStreams(streams);
+                  });
+     
+                  room.addEventListener("stream-removed", function (streamEvent) {
+                      // Remove stream from DOM
+                      var stream = streamEvent.stream;
+                      if (stream.elementID !== undefined) {
+                          var element = document.getElementById(stream.elementID);
+                          document.body.removeChild(element);
+                      }
+                  });
+     
+                  room.connect();
+                  localStream.play("myVideo");
+              });
+              localStream.init();
+              }
+          };
+
+          req.open('POST', url, true);
+          req.setRequestHeader('Content-Type', 'application/json');
+          req.send(JSON.stringify(body));                   
+      };
+    </script>
+  </head>
+ 
+  <body>
+    <div id="myVideo" style="width:320px; height: 240px;">
+    </div>
+  </body>
+</html>
